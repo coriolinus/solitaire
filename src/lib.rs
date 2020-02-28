@@ -69,14 +69,13 @@ where
         })
 }
 
-/// encrypt some plaintext using a pre-prepared deck
-///
-/// Note that the deck is consumed. Prepare your entire message before
-/// calling this method. Solitaire is not recommended for long messages.
-fn crypt(deck: Deck, text: &str, operation: impl Fn(u8, u8) -> u8) -> String {
-    pad_text(convert_text(text))
-        .zip(keystream(deck))
-        .map(|(c, k)| ((operation(c, k) % 26) + b'A') as char)
+/// restore a string from a stream of bytes where `1=='A'` etc.
+fn restore_str<I>(iter: I) -> String
+where
+    I: IntoIterator<Item = u8>,
+{
+    iter.into_iter()
+        .map(|b| ((b % 26) + b'A') as char)
         .chunks(GROUP_SIZE)
         .into_iter()
         .map(|chunk| {
@@ -104,6 +103,18 @@ fn crypt(deck: Deck, text: &str, operation: impl Fn(u8, u8) -> u8) -> String {
 
 /// encrypt some plaintext using a pre-prepared deck
 ///
+/// Note that the deck is consumed. Prepare your entire message before
+/// calling this method. Solitaire is not recommended for long messages.
+fn crypt(deck: Deck, text: &str, operation: impl Fn(u8, u8) -> u8) -> String {
+    restore_str(
+        pad_text(convert_text(text))
+            .zip(keystream(deck))
+            .map(|(c, k)| operation(c, k)),
+    )
+}
+
+/// encrypt some plaintext using a pre-prepared deck
+///
 /// Note that the deck is consumed. Prepare the entire message before
 /// calling this method. Solitaire is not recommended for long messages.
 pub fn encrypt(deck: Deck, text: &str) -> String {
@@ -115,9 +126,7 @@ pub fn encrypt(deck: Deck, text: &str) -> String {
 /// Note that the deck is consumed. Prepare the entire message before
 /// calling this method. Solitaire is not recommended for long messages.
 pub fn decrypt(deck: Deck, text: &str) -> String {
-    crypt(deck, text, |c, k| {
-        c + 51 - k
-    })
+    crypt(deck, text, |c, k| c + 51 - k)
 }
 
 #[cfg(all(test, not(feature = "small-deck-tests")))]
@@ -217,5 +226,24 @@ mod tests {
             decrypt(Deck::from_passphrase("cryptonomicon"), "kirak sfjan"),
             "SOLIT AIREX",
         );
+    }
+
+    #[test]
+    fn test_reverse_message() {
+        for w in [
+            "The quick brown fox jumps over the lazy dog.",
+            "Supercalifragilisticexpialidocious",
+            "Two tires fly. Two wail. A bamboo grove, all chopped down. From it, warring songs.",
+            "Let's set the existence-of-god issue aside for a later volume, and just stipulate that in _some_ way, self-replicating organisms came into existence on this planet and immediately began trying to get rid of each other, either by spamming their environments with rough copies of themselves, or by more direct means which hardly need to be belabored.",
+            "For a long time there is really nothing to be seen except steam; but after Golgotha's been burning for an hour or two, it becomes possible to see that underneath the shallow water, spreading down the valley floor, indeed right around the isolated boulder where Randy's perched, is a bright, thick river of gold.",
+        ].windows(2) {
+            let (key, msg) = (w[0], w[1]);
+            let expect = restore_str(pad_text(convert_text(msg)));
+            let deck = Deck::from_passphrase(key);
+            let ciphertext = encrypt(deck.clone(), msg);
+            let plaintext = decrypt(deck, &ciphertext);
+            dbg!(key, msg, &expect, ciphertext, &plaintext);
+            assert_eq!(expect, plaintext);
+        }
     }
 }
