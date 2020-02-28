@@ -1,7 +1,7 @@
 pub mod card;
 pub mod deck;
 
-pub use card::Card;
+pub use card::{Card, Value};
 pub use deck::Deck;
 
 /// A Keystream is an iterator which mutates a card deck to generate an infinite
@@ -19,8 +19,8 @@ pub fn keystream(deck: Deck<Card>) -> Keystream {
 }
 
 impl Iterator for Keystream {
-    type Item = char;
-    fn next(&mut self) -> Option<char> {
+    type Item = u8;
+    fn next(&mut self) -> Option<Self::Item> {
         let deck = &mut self.0;
         let mut output = None;
         while output.is_none() {
@@ -30,6 +30,21 @@ impl Iterator for Keystream {
             deck.count_cut();
             output = deck.output();
         }
-        output.map(|card| card.char().expect("deck.output() should exclude jokers"))
+        output.map(|card| card.value() as u8)
+    }
+}
+
+#[cfg(all(test, not(feature = "small-deck-tests")))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_example_outputs_1() {
+        assert_eq!(
+            &keystream(Deck::new_unshuffled())
+                .take(9)
+                .collect::<Vec<_>>(),
+            &[4, 49, 10, 24, 8, 51, 44, 6, 33],
+        );
     }
 }

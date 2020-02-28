@@ -1,12 +1,42 @@
 use crate::card::{Card, Value};
+use std::fmt;
 
-#[cfg(not(test))]
+#[cfg(not(feature = "small-deck-tests"))]
 pub const DECK_SIZE: usize = 54;
 
-#[cfg(test)]
+#[cfg(feature = "small-deck-tests")]
 pub const DECK_SIZE: usize = 8;
 
+#[derive(Clone)]
 pub struct Deck<T>([T; DECK_SIZE]);
+
+impl<T> fmt::Debug for Deck<T>
+where
+    T: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[")?;
+        for (idx, card) in self.0.iter().enumerate() {
+            let space = if idx == 0 { "" } else { " " };
+            write!(f, "{}{:?}", space, card)?;
+        }
+        write!(f, "]")
+    }
+}
+
+impl<T> fmt::Display for Deck<T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[")?;
+        for (idx, card) in self.0.iter().enumerate() {
+            let space = if idx == 0 { "" } else { " " };
+            write!(f, "{}{}", space, card)?;
+        }
+        write!(f, "]")
+    }
+}
 
 impl<T> Deck<T>
 where
@@ -27,6 +57,7 @@ where
 
 impl Deck<Card> {
     /// Generate a new deck in sorted order
+    #[cfg(not(feature = "small-deck-tests"))]
     pub fn new_unshuffled() -> Deck<Card> {
         use crate::card::Rank::*;
         use crate::card::Suit::*;
@@ -162,8 +193,8 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "small-deck-tests"))]
+mod small_deck_tests {
     use super::*;
 
     #[test]
@@ -238,5 +269,18 @@ mod tests {
         assert_eq!(deck.0, [5, 4, 8, 1, 7, 6, 2, 3]);
         deck.count_cut();
         assert_eq!(deck.0, [1, 7, 6, 2, 5, 4, 8, 3]);
+    }
+}
+
+#[cfg(all(test, not(feature = "small-deck-tests")))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_unkeyed() {
+        let d = Deck::new_unshuffled();
+        println!("{:?}", d);
+        assert_eq!(d.0[DECK_SIZE - 1].suit(), crate::card::Suit::Joker);
+        assert_eq!(d.0[DECK_SIZE - 2].suit(), crate::card::Suit::Joker);
     }
 }

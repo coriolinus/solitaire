@@ -1,3 +1,5 @@
+use std::fmt;
+
 pub trait Value {
     fn value(&self) -> usize;
 }
@@ -55,8 +57,6 @@ pub struct Card {
     rank: Rank,
 }
 
-use std::fmt;
-
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Rank::*;
@@ -107,15 +107,6 @@ impl Card {
             suit: Suit::Joker,
             rank: Rank::Number(1),
         }
-    }
-
-    pub fn char(&self) -> Option<char> {
-        if self.suit == Suit::Joker {
-            return None;
-        }
-        let suit_value = (self.suit as usize % 2) * 13;
-        let alpha_idx = (suit_value + self.rank.value()) as u8;
-        Some((b'A' - 1 + alpha_idx) as char)
     }
 
     pub fn suit(&self) -> Suit {
