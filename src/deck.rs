@@ -1,7 +1,29 @@
-use crate::card::Card;
+use crate::card::{Card, Value};
 
+#[cfg(not(test))]
 pub const DECK_SIZE: usize = 54;
+
+#[cfg(test)]
+pub const DECK_SIZE: usize = 8;
+
 pub struct Deck<T>([T; DECK_SIZE]);
+
+impl<T> Deck<T>
+where
+    T: Copy + Default,
+{
+    pub fn new<I>(cards: I) -> Deck<T>
+    where
+        I: IntoIterator,
+        I::Item: Into<T>,
+    {
+        let cards: Vec<T> = cards.into_iter().map(|card| card.into()).collect();
+        assert_eq!(cards.len(), DECK_SIZE, "input had incorrect length");
+        let mut arr = [T::default(); DECK_SIZE];
+        arr.copy_from_slice(&cards);
+        Deck(arr)
+    }
+}
 
 impl Deck<Card> {
     /// Generate a new deck in sorted order
@@ -36,18 +58,6 @@ impl Deck<Card> {
         Deck(d)
     }
 
-    /// excluding the bottom card of the deck, cut the deck at a position
-    /// specified by the bottom card
-    pub fn count_cut(&mut self) {
-        let idx = self.0[DECK_SIZE - 1].value();
-        let range_b_len = DECK_SIZE - idx - 1;
-        let mut next = [Card::default(); DECK_SIZE];
-        next[..range_b_len].copy_from_slice(&self.0[idx..DECK_SIZE - 1]);
-        next[range_b_len..DECK_SIZE - 1].copy_from_slice(&self.0[..idx]);
-        next[DECK_SIZE - 1] = self.0[DECK_SIZE - 1];
-        self.0 = next;
-    }
-
     /// find the output card given the current deck state
     pub fn output(&self) -> Option<Card> {
         let idx = self.0[0].value();
@@ -57,6 +67,23 @@ impl Deck<Card> {
         } else {
             Some(self.0[idx])
         }
+    }
+}
+
+impl<T> Deck<T>
+where
+    T: Value + Copy + Default,
+{
+    /// excluding the bottom card of the deck, cut the deck at a position
+    /// specified by the bottom card
+    pub fn count_cut(&mut self) {
+        let idx = self.0[DECK_SIZE - 1].value();
+        let range_b_len = DECK_SIZE - idx - 1;
+        let mut next = [T::default(); DECK_SIZE];
+        next[..range_b_len].copy_from_slice(&self.0[idx..DECK_SIZE - 1]);
+        next[range_b_len..DECK_SIZE - 1].copy_from_slice(&self.0[..idx]);
+        next[DECK_SIZE - 1] = self.0[DECK_SIZE - 1];
+        self.0 = next;
     }
 }
 
@@ -132,5 +159,84 @@ where
         next[new_idx0..=new_idx1].copy_from_slice(&self.0[idx0..=idx1]);
         next[new_idx1 + 1..].copy_from_slice(&self.0[..idx0]);
         self.0 = next;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_push_1_no_overflow() {
+        let mut deck = Deck::new(1..=DECK_SIZE);
+        assert_eq!(deck.0, [1, 2, 3, 4, 5, 6, 7, 8]);
+        deck.push(2, 1);
+        assert_eq!(deck.0, [1, 3, 2, 4, 5, 6, 7, 8]);
+        deck.push(2, 1);
+        assert_eq!(deck.0, [1, 3, 4, 2, 5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn test_push_1_overflow() {
+        let mut deck = Deck::new(1..=DECK_SIZE);
+        assert_eq!(deck.0, [1, 2, 3, 4, 5, 6, 7, 8]);
+        deck.push(7, 1);
+        assert_eq!(deck.0, [1, 2, 3, 4, 5, 6, 8, 7]);
+        deck.push(7, 1);
+        assert_eq!(deck.0, [1, 7, 2, 3, 4, 5, 6, 8]);
+        deck.push(6, 1);
+        deck.push(6, 1);
+        assert_eq!(deck.0, [1, 6, 7, 2, 3, 4, 5, 8]);
+    }
+
+    #[test]
+    fn test_push_2_no_overflow() {
+        let mut deck = Deck::new(1..=DECK_SIZE);
+        assert_eq!(deck.0, [1, 2, 3, 4, 5, 6, 7, 8]);
+        deck.push(2, 2);
+        assert_eq!(deck.0, [1, 3, 4, 2, 5, 6, 7, 8]);
+        deck.push(4, 2);
+        assert_eq!(deck.0, [1, 3, 2, 5, 4, 6, 7, 8]);
+    }
+
+    #[test]
+    fn test_push_2_overflow() {
+        let mut deck = Deck::new(1..=DECK_SIZE);
+        assert_eq!(deck.0, [1, 2, 3, 4, 5, 6, 7, 8]);
+        deck.push(8, 2);
+        assert_eq!(deck.0, [1, 2, 8, 3, 4, 5, 6, 7]);
+        deck.push(6, 2);
+        assert_eq!(deck.0, [1, 6, 2, 8, 3, 4, 5, 7]);
+    }
+
+    #[test]
+    fn test_triple_cut() {
+        let mut deck = Deck::new(1..=DECK_SIZE);
+        assert_eq!(deck.0, [1, 2, 3, 4, 5, 6, 7, 8]);
+        // basic swap
+        deck.triple_cut(3, 6);
+        assert_eq!(deck.0, [7, 8, 3, 4, 5, 6, 1, 2]);
+        // unbalanced + end left
+        deck.triple_cut(7, 1);
+        assert_eq!(deck.0, [2, 7, 8, 3, 4, 5, 6, 1]);
+        // unbalanced + end right + ordering
+        deck.triple_cut(1, 8);
+        assert_eq!(deck.0, [8, 3, 4, 5, 6, 1, 2, 7]);
+    }
+
+    #[test]
+    fn test_count_cut() {
+        let mut deck = Deck::new((1..=DECK_SIZE).rev());
+        assert_eq!(deck.0, [8, 7, 6, 5, 4, 3, 2, 1]);
+        deck.count_cut();
+        assert_eq!(deck.0, [7, 6, 5, 4, 3, 2, 8, 1]);
+        deck.push(2, 2);
+        assert_eq!(deck.0, [7, 6, 5, 4, 3, 8, 1, 2]);
+        deck.count_cut();
+        assert_eq!(deck.0, [5, 4, 3, 8, 1, 7, 6, 2]);
+        deck.push(3, 5);
+        assert_eq!(deck.0, [5, 4, 8, 1, 7, 6, 2, 3]);
+        deck.count_cut();
+        assert_eq!(deck.0, [1, 7, 6, 2, 5, 4, 8, 3]);
     }
 }

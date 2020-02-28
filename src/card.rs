@@ -1,3 +1,7 @@
+pub trait Value {
+    fn value(&self) -> usize;
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Suit {
@@ -105,15 +109,6 @@ impl Card {
         }
     }
 
-    pub fn value(&self) -> usize {
-        if self.suit == Suit::Joker {
-            53
-        } else {
-            let suit_value = self.suit as usize * 13;
-            suit_value + self.rank.value()
-        }
-    }
-
     pub fn char(&self) -> Option<char> {
         if self.suit == Suit::Joker {
             return None;
@@ -129,5 +124,22 @@ impl Card {
 
     pub fn rank(&self) -> Rank {
         self.rank
+    }
+}
+
+impl Value for Card {
+    fn value(&self) -> usize {
+        if self.suit == Suit::Joker {
+            53
+        } else {
+            let suit_value = self.suit as usize * 13;
+            suit_value + self.rank.value()
+        }
+    }
+}
+
+impl Value for usize {
+    fn value(&self) -> usize {
+        *self
     }
 }
