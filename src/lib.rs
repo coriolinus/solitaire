@@ -1,8 +1,14 @@
 pub mod card;
 pub mod deck;
 
-pub use card::Card;
+use card::Card;
 pub use deck::Deck;
+use itertools::Itertools;
+
+/// size of groups of output characters
+pub const GROUP_SIZE: usize = 5;
+/// inputs whose
+pub const PAD_CHAR: u8 = b'X';
 
 /// A Keystream is an iterator which mutates a card deck to generate an infinite
 /// pseudo-random stream of characters in the range `'A'..='Z'`.
@@ -39,6 +45,79 @@ fn convert_text(text: &str) -> impl Iterator<Item = u8> + '_ {
     text.chars()
         .filter(char::is_ascii_alphabetic)
         .map(|c| (c.to_ascii_uppercase() as u8) - b'A' + 1)
+}
+
+/// pad a letter value iterator with sufficient `PAD_CHAR`s that its length
+/// becomes a multiple of `GROUP_SIZE`
+fn pad_text<I>(iter: I) -> impl Iterator<Item = u8>
+where
+    I: IntoIterator<Item = u8>,
+{
+    use itertools::EitherOrBoth::*;
+    iter.into_iter()
+        .zip_longest(std::iter::repeat(PAD_CHAR))
+        .enumerate()
+        .take_while(|(idx, eob)| match eob {
+            Left(_) => unreachable!(),
+            Both(_, _) => true,
+            Right(_) => idx % GROUP_SIZE != 0,
+        })
+        .map(|(_, eob)| match eob {
+            Left(_) => unreachable!(),
+            Both(b, _) => b,
+            Right(b) => b,
+        })
+}
+
+/// encrypt some plaintext using a pre-prepared deck
+///
+/// Note that the deck is consumed. Prepare your entire message before
+/// calling this method. Solitaire is not recommended for long messages.
+fn crypt(deck: Deck, text: &str, operation: impl Fn(u8, u8) -> u8) -> String {
+    pad_text(convert_text(text))
+        .zip(keystream(deck))
+        .map(|(c, k)| ((operation(c, k) % 26) + b'A') as char)
+        .chunks(GROUP_SIZE)
+        .into_iter()
+        .map(|chunk| {
+            let d: Box<dyn Iterator<Item = char>> = Box::new(chunk);
+            d
+        })
+        .interleave_shortest(std::iter::repeat(std::iter::once(' ')).map(|cyc| {
+            let d: Box<dyn Iterator<Item = char>> = Box::new(cyc);
+            d
+        }))
+        .flatten()
+        .with_position()
+        .filter_map(|pos| {
+            use itertools::Position::*;
+            match pos {
+                Only(c) => Some(c),
+                First(c) => Some(c),
+                Middle(c) => Some(c),
+                Last(c) if c != ' ' => Some(c),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+/// encrypt some plaintext using a pre-prepared deck
+///
+/// Note that the deck is consumed. Prepare the entire message before
+/// calling this method. Solitaire is not recommended for long messages.
+pub fn encrypt(deck: Deck, text: &str) -> String {
+    crypt(deck, text, |p, k| p + k - 1)
+}
+
+/// decrypt some ciphertext using a pre-prepared deck
+///
+/// Note that the deck is consumed. Prepare the entire message before
+/// calling this method. Solitaire is not recommended for long messages.
+pub fn decrypt(deck: Deck, text: &str) -> String {
+    crypt(deck, text, |c, k| {
+        c + 51 - k
+    })
 }
 
 #[cfg(all(test, not(feature = "small-deck-tests")))]
@@ -78,6 +157,65 @@ mod tests {
                 .take(15)
                 .collect::<Vec<_>>(),
             &[8, 19, 7, 25, 20, 9, 8, 22, 32, 43, 5, 26, 17, 38, 48],
+        );
+    }
+
+    fn test_padding_impl(input: &str, expect_len: usize) {
+        assert_eq!(
+            pad_text(convert_text(input)).collect::<Vec<_>>().len(),
+            expect_len
+        );
+    }
+
+    #[test]
+    fn test_padding() {
+        test_padding_impl("a", 5);
+        test_padding_impl("abcde", 5);
+        test_padding_impl(".", 0);
+        test_padding_impl("abcdef", 10);
+        test_padding_impl("a.b.c.d", 5);
+        test_padding_impl("", 0);
+    }
+
+    #[test]
+    fn test_encrypt_example_1() {
+        assert_eq!(encrypt(Deck::new(), "aaaaa aaaaa"), "EXKYI ZSGEH",);
+    }
+
+    #[test]
+    fn test_decrypt_example_1() {
+        assert_eq!(decrypt(Deck::new(), "exkyi zsgeh"), "AAAAA AAAAA",);
+    }
+
+    #[test]
+    fn test_encrypt_example_2() {
+        assert_eq!(
+            encrypt(Deck::from_passphrase("foo"), "aaaaa aaaaa aaaaa"),
+            "ITHZU JIWGR FARMW",
+        );
+    }
+
+    #[test]
+    fn test_decrypt_example_2() {
+        assert_eq!(
+            decrypt(Deck::from_passphrase("foo"), "ithzu jiwgr farmw"),
+            "AAAAA AAAAA AAAAA",
+        );
+    }
+
+    #[test]
+    fn test_encrypt_example_3() {
+        assert_eq!(
+            encrypt(Deck::from_passphrase("cryptonomicon"), "solitaire"),
+            "KIRAK SFJAN",
+        );
+    }
+
+    #[test]
+    fn test_decrypt_example_3() {
+        assert_eq!(
+            decrypt(Deck::from_passphrase("cryptonomicon"), "kirak sfjan"),
+            "SOLIT AIREX",
         );
     }
 }
