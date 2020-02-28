@@ -27,11 +27,18 @@ impl Iterator for Keystream {
             deck.push(Card::joker_a(), 1);
             deck.push(Card::joker_b(), 2);
             deck.triple_cut(Card::joker_a(), Card::joker_b());
-            deck.count_cut();
-            output = dbg!(deck.output());
+            deck.count_cut(None);
+            output = deck.output();
         }
         output.map(u8::from)
     }
+}
+
+/// convert a text input into a numeric stream from 1..26 according to its chars
+fn convert_text(text: &str) -> impl Iterator<Item = u8> + '_ {
+    text.chars()
+        .filter(char::is_ascii_alphabetic)
+        .map(|c| (c.to_ascii_uppercase() as u8) - b'A' + 1)
 }
 
 #[cfg(all(test, not(feature = "small-deck-tests")))]
@@ -60,6 +67,17 @@ mod tests {
         assert_eq!(
             &keystream(Deck::new()).take(9).collect::<Vec<_>>(),
             &[4, 49, 10, 24, 8, 51, 44, 6, 33],
+        );
+    }
+
+    #[test]
+    /// this test is sample 2 in the book
+    fn test_passphrase_keygen() {
+        assert_eq!(
+            &keystream(Deck::from_passphrase("foo"))
+                .take(15)
+                .collect::<Vec<_>>(),
+            &[8, 19, 7, 25, 20, 9, 8, 22, 32, 43, 5, 26, 17, 38, 48],
         );
     }
 }

@@ -1,4 +1,5 @@
 use crate::card::Card;
+use crate::convert_text;
 use std::convert::TryFrom;
 use std::fmt;
 use std::iter::FromIterator;
@@ -51,6 +52,19 @@ impl Deck {
         let mut d = [0; DECK_SIZE];
         d.copy_from_slice(&range);
         Deck(d)
+    }
+
+    /// Generate a deck from a passphrase to create the initial deck ordering.
+    pub fn from_passphrase(phrase: &str) -> Deck {
+        let mut deck = Deck::new();
+        for ch in convert_text(phrase) {
+            deck.push(Card::joker_a(), 1);
+            deck.push(Card::joker_b(), 2);
+            deck.triple_cut(Card::joker_a(), Card::joker_b());
+            deck.count_cut(None);
+            deck.count_cut(Some(ch));
+        }
+        deck
     }
 
     pub fn shuffle(&mut self) {
@@ -131,15 +145,19 @@ impl Deck {
 
     /// excluding the bottom card of the deck, cut the deck at a position
     /// specified by the bottom card
-    pub fn count_cut(&mut self) {
-        let idx = {
-            let mut idx = self.0[DECK_SIZE - 1] as usize;
-            // the jokers should both have the same value
-            if idx == DECK_SIZE {
-                idx -= 1;
+    pub fn count_cut(&mut self, override_idx: Option<u8>) {
+        let idx = match override_idx {
+            Some(oi) => oi as usize,
+            None => {
+                let mut idx = self.0[DECK_SIZE - 1] as usize;
+                // the jokers should both have the same value
+                if idx == DECK_SIZE {
+                    idx -= 1;
+                }
+                idx
             }
-            idx
         };
+
         let range_b_len = DECK_SIZE - idx - 1;
         let mut next = [0; DECK_SIZE];
         next[..range_b_len].copy_from_slice(&self.0[idx..DECK_SIZE - 1]);

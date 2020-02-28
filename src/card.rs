@@ -151,15 +151,6 @@ impl Card {
     pub fn rank(&self) -> Rank {
         self.rank
     }
-
-    pub fn value(&self) -> u8 {
-        let uval = u8::from(*self) + 1;
-        if uval >= DECK_SIZE as u8 - 1 {
-            53
-        } else {
-            uval
-        }
-    }
 }
 
 impl From<Card> for u8 {
