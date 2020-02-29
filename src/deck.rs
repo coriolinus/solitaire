@@ -1,5 +1,4 @@
 use crate::card::Card;
-use crate::convert_text;
 use std::convert::TryFrom;
 use std::fmt;
 use std::iter::FromIterator;
@@ -54,18 +53,18 @@ impl Deck {
         Deck(d)
     }
 
-    /// Generate a deck from a passphrase to create the initial deck ordering.
-    pub fn from_passphrase(phrase: &str) -> Deck {
-        let mut deck = Deck::new();
-        for ch in convert_text(phrase) {
-            deck.push(Card::joker_a(), 1);
-            deck.push(Card::joker_b(), 2);
-            deck.triple_cut(Card::joker_a(), Card::joker_b());
-            deck.count_cut(None);
-            deck.count_cut(Some(ch));
-        }
-        deck
-    }
+    // /// Generate a deck from a passphrase to create the initial deck ordering.
+    // pub fn from_passphrase(phrase: &str) -> Deck {
+    //     let mut deck = Deck::new();
+    //     for ch in convert_text(phrase) {
+    //         deck.push(Card::joker_a(), 1);
+    //         deck.push(Card::joker_b(), 2);
+    //         deck.triple_cut(Card::joker_a(), Card::joker_b());
+    //         deck.count_cut(None);
+    //         deck.count_cut(Some(ch));
+    //     }
+    //     deck
+    // }
 
     pub fn shuffle(&mut self) {
         use rand::seq::SliceRandom;

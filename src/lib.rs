@@ -1,14 +1,15 @@
 pub mod card;
 pub mod deck;
+pub mod textbyte;
 
 use card::Card;
 pub use deck::Deck;
-use itertools::Itertools;
+use textbyte::prelude::*;
 
 /// size of groups of output characters
 pub const GROUP_SIZE: usize = 5;
 /// inputs whose
-pub const PAD_CHAR: u8 = b'X';
+pub const PAD_CHAR: u8 = b'X' - b'A' + 1;
 
 /// A Keystream is an iterator which mutates a card deck to generate an infinite
 /// pseudo-random stream of characters in the range `'A'..='Z'`.
@@ -40,77 +41,18 @@ impl Iterator for Keystream {
     }
 }
 
-/// convert a text input into a numeric stream from 1..26 according to its chars
-fn convert_text(text: &str) -> impl Iterator<Item = u8> + '_ {
-    text.chars()
-        .filter(char::is_ascii_alphabetic)
-        .map(|c| (c.to_ascii_uppercase() as u8) - b'A' + 1)
-}
-
-/// pad a letter value iterator with sufficient `PAD_CHAR`s that its length
-/// becomes a multiple of `GROUP_SIZE`
-fn pad_text<I>(iter: I) -> impl Iterator<Item = u8>
-where
-    I: IntoIterator<Item = u8>,
-{
-    use itertools::EitherOrBoth::*;
-    iter.into_iter()
-        .zip_longest(std::iter::repeat(PAD_CHAR))
-        .enumerate()
-        .take_while(|(idx, eob)| match eob {
-            Left(_) => unreachable!(),
-            Both(_, _) => true,
-            Right(_) => idx % GROUP_SIZE != 0,
-        })
-        .map(|(_, eob)| match eob {
-            Left(_) => unreachable!(),
-            Both(b, _) => b,
-            Right(b) => b,
-        })
-}
-
-/// restore a string from a stream of bytes where `1=='A'` etc.
-fn restore_str<I>(iter: I) -> String
-where
-    I: IntoIterator<Item = u8>,
-{
-    iter.into_iter()
-        .map(|b| ((b % 26) + b'A') as char)
-        .chunks(GROUP_SIZE)
-        .into_iter()
-        .map(|chunk| {
-            let d: Box<dyn Iterator<Item = char>> = Box::new(chunk);
-            d
-        })
-        .interleave_shortest(std::iter::repeat(std::iter::once(' ')).map(|cyc| {
-            let d: Box<dyn Iterator<Item = char>> = Box::new(cyc);
-            d
-        }))
-        .flatten()
-        .with_position()
-        .filter_map(|pos| {
-            use itertools::Position::*;
-            match pos {
-                Only(c) => Some(c),
-                First(c) => Some(c),
-                Middle(c) => Some(c),
-                Last(c) if c != ' ' => Some(c),
-                _ => None,
-            }
-        })
-        .collect()
-}
-
 /// encrypt some plaintext using a pre-prepared deck
 ///
 /// Note that the deck is consumed. Prepare your entire message before
 /// calling this method. Solitaire is not recommended for long messages.
 fn crypt(deck: Deck, text: &str, operation: impl Fn(u8, u8) -> u8) -> String {
-    restore_str(
-        pad_text(convert_text(text))
-            .zip(keystream(deck))
-            .map(|(c, k)| operation(c, k)),
-    )
+    textbyte(text)
+        .pad(PAD_CHAR, GROUP_SIZE)
+        .zip(keystream(deck))
+        .map(|(c, k)| operation(c, k))
+        .restore()
+        .separate(' ', GROUP_SIZE)
+        .collect()
 }
 
 /// encrypt some plaintext using a pre-prepared deck
@@ -126,7 +68,7 @@ pub fn encrypt(deck: Deck, text: &str) -> String {
 /// Note that the deck is consumed. Prepare the entire message before
 /// calling this method. Solitaire is not recommended for long messages.
 pub fn decrypt(deck: Deck, text: &str) -> String {
-    crypt(deck, text, |c, k| c + 51 - k)
+    crypt(deck, text, |c, k| c + (26 * 3) - 1 - k)
 }
 
 #[cfg(all(test, not(feature = "small-deck-tests")))]
@@ -167,23 +109,6 @@ mod tests {
                 .collect::<Vec<_>>(),
             &[8, 19, 7, 25, 20, 9, 8, 22, 32, 43, 5, 26, 17, 38, 48],
         );
-    }
-
-    fn test_padding_impl(input: &str, expect_len: usize) {
-        assert_eq!(
-            pad_text(convert_text(input)).collect::<Vec<_>>().len(),
-            expect_len
-        );
-    }
-
-    #[test]
-    fn test_padding() {
-        test_padding_impl("a", 5);
-        test_padding_impl("abcde", 5);
-        test_padding_impl(".", 0);
-        test_padding_impl("abcdef", 10);
-        test_padding_impl("a.b.c.d", 5);
-        test_padding_impl("", 0);
     }
 
     #[test]
@@ -238,7 +163,7 @@ mod tests {
             "For a long time there is really nothing to be seen except steam; but after Golgotha's been burning for an hour or two, it becomes possible to see that underneath the shallow water, spreading down the valley floor, indeed right around the isolated boulder where Randy's perched, is a bright, thick river of gold.",
         ].windows(2) {
             let (key, msg) = (w[0], w[1]);
-            let expect = restore_str(pad_text(convert_text(msg)));
+            let expect = textbyte(text).pad(PAD_CHAR, GROUP_SIZE).restore().separate(' ', GROUP_SIZE).collect::<String>();
             let deck = Deck::from_passphrase(key);
             let ciphertext = encrypt(deck.clone(), msg);
             let plaintext = decrypt(deck, &ciphertext);
