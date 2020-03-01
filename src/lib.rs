@@ -41,35 +41,35 @@ impl Iterator for Keystream {
     }
 }
 
-/// encrypt some plaintext using a pre-prepared deck
-///
-/// Note that the deck is consumed. Prepare your entire message before
-/// calling this method. Solitaire is not recommended for long messages.
-fn crypt(deck: Deck, text: &str, operation: impl Fn(u8, u8) -> u8) -> String {
-    textbyte(text)
-        .pad(PAD_CHAR, GROUP_SIZE)
-        .zip(keystream(deck))
-        .map(|(c, k)| operation(c, k))
-        .restore()
-        .separate(' ', GROUP_SIZE)
-        .collect()
-}
+// /// encrypt some plaintext using a pre-prepared deck
+// ///
+// /// Note that the deck is consumed. Prepare your entire message before
+// /// calling this method. Solitaire is not recommended for long messages.
+// fn crypt(deck: Deck, text: &str, operation: impl Fn(u8, u8) -> u8) -> String {
+//     textbyte(text)
+//         .pad(PAD_CHAR, GROUP_SIZE)
+//         .zip(keystream(deck))
+//         .map(|(c, k)| operation(c, k))
+//         .restore()
+//         .separate(' ', GROUP_SIZE)
+//         .collect()
+// }
 
-/// encrypt some plaintext using a pre-prepared deck
-///
-/// Note that the deck is consumed. Prepare the entire message before
-/// calling this method. Solitaire is not recommended for long messages.
-pub fn encrypt(deck: Deck, text: &str) -> String {
-    crypt(deck, text, |p, k| p + k - 1)
-}
+// /// encrypt some plaintext using a pre-prepared deck
+// ///
+// /// Note that the deck is consumed. Prepare the entire message before
+// /// calling this method. Solitaire is not recommended for long messages.
+// pub fn encrypt(deck: Deck, text: &str) -> String {
+//     crypt(deck, text, |p, k| p + k - 1)
+// }
 
-/// decrypt some ciphertext using a pre-prepared deck
-///
-/// Note that the deck is consumed. Prepare the entire message before
-/// calling this method. Solitaire is not recommended for long messages.
-pub fn decrypt(deck: Deck, text: &str) -> String {
-    crypt(deck, text, |c, k| c + (26 * 3) - 1 - k)
-}
+// /// decrypt some ciphertext using a pre-prepared deck
+// ///
+// /// Note that the deck is consumed. Prepare the entire message before
+// /// calling this method. Solitaire is not recommended for long messages.
+// pub fn decrypt(deck: Deck, text: &str) -> String {
+//     crypt(deck, text, |c, k| c + (26 * 3) - 1 - k)
+// }
 
 #[cfg(all(test, not(feature = "small-deck-tests")))]
 mod tests {
