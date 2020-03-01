@@ -77,6 +77,22 @@ impl fmt::Display for Suit {
     }
 }
 
+impl Suit {
+    pub fn to_ascii_string(&self) -> String {
+        use Suit::*;
+        format!(
+            "{}",
+            match self {
+                Club => "C",
+                Diamond => "D",
+                Heart => "H",
+                Spade => "S",
+                Joker => "J",
+            }
+        )
+    }
+}
+
 impl FromStr for Suit {
     type Err = CardConversionError;
 
@@ -138,8 +154,14 @@ pub struct Card {
 
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}", self.rank_string(), self.suit)
+    }
+}
+
+impl Card {
+    fn rank_string(&self) -> String {
         use Rank::*;
-        let rank = match self {
+        match self {
             &JOKER_A => "A".to_string(),
             &JOKER_B => "B".to_string(),
             _ => {
@@ -152,9 +174,10 @@ impl fmt::Display for Card {
                 }
                 s
             }
-        };
-
-        write!(f, "{}{}", rank, self.suit)
+        }
+    }
+    pub fn to_ascii_string(&self) -> String {
+        format!("{}{}", self.rank_string(), self.suit.to_ascii_string())
     }
 }
 
@@ -162,10 +185,14 @@ impl FromStr for Card {
     type Err = CardConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let suit_s = &s.chars().last().ok_or(CardConversionError::WrongLength(0))?.to_string();
+        let suit_s = &s
+            .chars()
+            .last()
+            .ok_or(CardConversionError::WrongLength(0))?
+            .to_string();
         let suit: Suit = str::parse(&suit_s)?;
 
-        let rank_s = &s[..s.len()-suit_s.len()];
+        let rank_s = &s[..s.len() - suit_s.len()];
         match (suit, rank_s) {
             (Suit::Joker, "A") | (Suit::Joker, "a") => Ok(JOKER_A),
             (Suit::Joker, "B") | (Suit::Joker, "b") => Ok(JOKER_B),
@@ -261,7 +288,7 @@ mod tests {
             let card = Card::try_from(i).unwrap();
             let s = card.to_string();
             dbg!(card, &s);
-            let parsed= Card::from_str(&s).unwrap();
+            let parsed = Card::from_str(&s).unwrap();
             assert_eq!(card, parsed);
         }
     }
