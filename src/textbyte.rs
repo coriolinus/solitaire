@@ -134,49 +134,83 @@ pub mod prelude {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{GROUP_SIZE, PAD_CHAR};
 
-    fn test_convert_text_impl(msg: &str, expect: &[u8]) {
-        let have: Vec<u8> = convert_text(msg).collect();
+    fn convert_text_impl(msg: &str, expect: &[u8]) {
+        let have: Vec<u8> = textbyte(msg).collect();
         assert_eq!(have, expect);
     }
 
     #[test]
     fn test_convert_text() {
-        test_convert_text_impl("abc", &[1, 2, 3]);
-        test_convert_text_impl("xyz", &[24, 25, 26]);
-        test_convert_text_impl("abc def", &[1, 2, 3, 4, 5, 6]);
-        test_convert_text_impl("xyz.fed", &[24, 25, 26, 6, 5, 4]);
+        convert_text_impl("abc", &[1, 2, 3]);
+        convert_text_impl("xyz", &[24, 25, 26]);
+        convert_text_impl("abc def", &[1, 2, 3, 4, 5, 6]);
+        convert_text_impl("xyz.fed", &[24, 25, 26, 6, 5, 4]);
     }
 
-    fn test_padding_impl(input: &str, expect_len: usize) {
+    fn padding_impl(msg: &str, expect_len: usize) {
         assert_eq!(
-            pad_text(convert_text(input)).collect::<Vec<_>>().len(),
+            textbyte(msg).pad(PAD_CHAR, GROUP_SIZE).collect::<Vec<_>>().len(),
             expect_len
         );
     }
 
     #[test]
     fn test_padding() {
-        test_padding_impl("a", 5);
-        test_padding_impl("abcde", 5);
-        test_padding_impl(".", 0);
-        test_padding_impl("abcdef", 10);
-        test_padding_impl("a.b.c.d", 5);
-        test_padding_impl("", 0);
+        padding_impl("a", 5);
+        padding_impl("abcde", 5);
+        padding_impl(".", 0);
+        padding_impl("abcdef", 10);
+        padding_impl("a.b.c.d", 5);
+        padding_impl("", 0);
     }
 
-    fn test_padding_impl_2(msg: &str, expect: &[u8]) {
-        let have: Vec<u8> = pad_text(convert_text(msg)).collect();
+    fn padding_impl_2(msg: &str, expect: &[u8]) {
+        let have: Vec<u8> = textbyte(msg).pad(PAD_CHAR, GROUP_SIZE).collect();
         assert_eq!(have, expect);
     }
 
     #[test]
     fn test_padding_2() {
-        test_padding_impl_2("a", &[1, 24, 24, 24, 24]);
-        test_padding_impl_2("abcde", &[1, 2, 3, 4, 5]);
-        test_padding_impl_2(".", &[]);
-        test_padding_impl_2("abcdef", &[1, 2, 3, 4, 5, 6, 24, 24, 24, 24]);
-        test_padding_impl_2("a.b.c.d", &[1, 2, 3, 4, 24]);
-        test_padding_impl_2("", &[]);
+        padding_impl_2("a", &[1, 24, 24, 24, 24]);
+        padding_impl_2("abcde", &[1, 2, 3, 4, 5]);
+        padding_impl_2(".", &[]);
+        padding_impl_2("abcdef", &[1, 2, 3, 4, 5, 6, 24, 24, 24, 24]);
+        padding_impl_2("a.b.c.d", &[1, 2, 3, 4, 24]);
+        padding_impl_2("", &[]);
+    }
+
+    fn reverse_impl(msg: &str) {
+        let msg = &msg.to_string().to_uppercase();
+        assert_eq!(
+            &textbyte(msg).restore().collect::<String>(),
+            msg,
+        );
+    }
+
+    #[test]
+    fn test_reverse() {
+        reverse_impl("abc");
+        reverse_impl("zyx");
+        reverse_impl("abcdefghijklmnopqrstuvwxyz");
+        reverse_impl("thequickbrownfoxjumpedoverthelazydog");
+        reverse_impl("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
+    }
+
+    #[test]
+    fn test_separate() {
+        for (msg, expect) in &[
+            ("abc", "abc"),
+            ("zyx", "zyx"),
+            ("abcdefghijklmnopqrstuvwxyz", "abcde fghij klmno pqrst uvwxy z"),
+            ("thequickbrownfoxjumpedoverthelazydog", "thequ ickbr ownfo xjump edove rthel azydo g"),
+            ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz", "abcde fghij klmno pqrst uvwxy zabcd efghi jklmn opqrs tuvwx yz"),
+        ] {
+            assert_eq!(
+                &msg.chars().separate(' ', 5),
+                expect,
+            );
+        }
     }
 }
