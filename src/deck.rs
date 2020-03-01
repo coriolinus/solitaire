@@ -1,8 +1,12 @@
-use crate::card::{Card, JOKER_A, JOKER_B};
+use crate::card::{Card, CardConversionError, JOKER_A, JOKER_B};
 use crate::textbyte::textbyte;
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::convert::TryFrom;
 use std::fmt;
 use std::iter::FromIterator;
+use std::str::FromStr;
+use thiserror::Error;
 
 #[cfg(not(feature = "small-deck-tests"))]
 pub const DECK_SIZE: usize = 54;
@@ -10,9 +14,25 @@ pub const DECK_SIZE: usize = 54;
 #[cfg(feature = "small-deck-tests")]
 pub const DECK_SIZE: usize = 8;
 
+lazy_static! {
+    static ref DECK_RE: Regex = Regex::new(r"(?i)[\djqkab]{1,2}[cdhsj♣♦♥♠♧♢♡♤]").unwrap();
+}
+
 fn is_joker(v: u8) -> bool {
     let v = v as usize;
     v == DECK_SIZE || v == (DECK_SIZE - 1)
+}
+
+#[derive(Error, Debug)]
+pub enum DeckError {
+    #[error("could not parse a card")]
+    ParseCard(#[from] CardConversionError),
+    #[error("wrong number of cards in deck; need DECK_SIZE")]
+    WrongNumber,
+    #[error("each card in a deck must be unique")]
+    NotUnique,
+    #[error("cards in a deck must range from 1..=DECK_SIZE")]
+    OutOfBounds,
 }
 
 #[derive(Clone)]
@@ -118,7 +138,6 @@ impl Deck {
     {
         let card0 = card0.into();
         let card1 = card1.into();
-        assert_ne!(card0, card1, "cards mut not be identical");
         let (idx0, idx1) = {
             let mut idx0 = self.find(card0);
             let mut idx1 = self.find(card1);
@@ -127,7 +146,6 @@ impl Deck {
             }
             (idx0, idx1)
         };
-        debug_assert!(idx0 < idx1, "triple cut indices are backwards");
         let mut next = [0; DECK_SIZE];
         let new_idx0 = DECK_SIZE - idx1 - 1;
         let new_idx1 = DECK_SIZE - idx0 - 1;
@@ -192,33 +210,69 @@ impl Default for Deck {
     }
 }
 
-impl<T> FromIterator<T> for Deck
+/// This might be able to become a deck, but it needs additional validation
+#[derive(Clone, Debug)]
+pub struct MaybeDeck(Vec<u8>);
+
+impl FromStr for MaybeDeck {
+    type Err = DeckError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let cards: Vec<Card> = DECK_RE
+            .captures_iter(s)
+            .take(DECK_SIZE + 1)
+            .map(|caps| Card::from_str(&caps[0]))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self(cards.iter().map(|card| card.into()).collect()))
+    }
+}
+
+impl<T> FromIterator<T> for MaybeDeck
 where
     T: Into<u8>,
 {
-    fn from_iter<I>(iter: I) -> Deck
+    fn from_iter<I>(iter: I) -> MaybeDeck
     where
         I: IntoIterator<Item = T>,
     {
-        let cards: Vec<u8> = iter
-            .into_iter()
-            .take(DECK_SIZE + 1)
-            .map(Into::into)
-            .collect();
-        assert_eq!(cards.len(), DECK_SIZE, "input had incorrect length");
-        debug_assert_eq!(
-            {
-                let mut scards = cards.clone();
-                scards.sort();
-                scards.dedup();
-                scards.len()
-            },
-            DECK_SIZE,
-            "input had duplicate items"
-        );
+        MaybeDeck(
+            iter.into_iter()
+                .take(DECK_SIZE + 1)
+                .map(Into::into)
+                .collect(),
+        )
+    }
+}
+
+impl MaybeDeck {
+    pub fn check(self) -> Result<Deck, DeckError> {
+        if self.0.len() != DECK_SIZE {
+            return Err(DeckError::WrongNumber);
+        }
+        // it is entirely possible that our deck is unordered. In order to keep
+        // doing our checks without forcibly ordering the deck, let's copy
+        // the arrangement for mutation.
+        let mut scards = self.0.clone();
+        scards.sort();
+        scards.dedup();
+        if scards.len() != DECK_SIZE {
+            return Err(DeckError::NotUnique);
+        }
+        if scards[0] != 1 || scards[scards.len() - 1] != (DECK_SIZE as u8) {
+            return Err(DeckError::OutOfBounds);
+        }
+
         let mut arr = [0; DECK_SIZE];
-        arr.copy_from_slice(&cards);
-        Deck(arr)
+        arr.copy_from_slice(&self.0);
+        Ok(Deck(arr))
+    }
+}
+
+impl TryFrom<MaybeDeck> for Deck {
+    type Error = DeckError;
+
+    fn try_from(value: MaybeDeck) -> Result<Self, Self::Error> {
+        value.check()
     }
 }
 
@@ -286,7 +340,11 @@ mod small_deck_tests {
 
     #[test]
     fn test_count_cut() {
-        let mut deck: Deck = (1..=(DECK_SIZE as u8)).rev().collect();
+        let mut deck = (1..=(DECK_SIZE as u8))
+            .rev()
+            .collect::<MaybeDeck>()
+            .check()
+            .unwrap();
         assert_eq!(deck.0, [8, 7, 6, 5, 4, 3, 2, 1]);
         deck.count_cut(None);
         assert_eq!(deck.0, [7, 6, 5, 4, 3, 2, 8, 1]);
@@ -305,6 +363,14 @@ mod small_deck_tests {
         let mut deck = Deck::new();
         assert_eq!(deck.0, [1, 2, 3, 4, 5, 6, 7, 8]);
         deck.count_cut(None);
+        assert_eq!(deck.0, [1, 2, 3, 4, 5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn test_parse() {
+        let deck = str::parse::<MaybeDeck>("ac 2C 3c 4C 5c 6C 7c 8C").unwrap();
+        assert_eq!(deck.0, [1, 2, 3, 4, 5, 6, 7, 8]);
+        let deck = str::parse::<MaybeDeck>("1♣ 2♣ 3♣ 4♣ 5♧ 6♧ 7♧ 8♧").unwrap();
         assert_eq!(deck.0, [1, 2, 3, 4, 5, 6, 7, 8]);
     }
 }

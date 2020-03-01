@@ -203,6 +203,7 @@ impl FromStr for Card {
                     "11" | "J" | "j" => Jack,
                     "12" | "Q" | "q" => Queen,
                     "13" | "K" | "k" => King,
+                    "A" | "a" => Number(1),
                     _ => Number(str::parse(rank_s)?),
                 };
                 Ok(Card::new(suit, rank))
@@ -238,6 +239,12 @@ impl From<Card> for u8 {
     fn from(card: Card) -> Self {
         let suit_value = card.suit as u8 * SUIT_SIZE;
         suit_value + card.rank.value()
+    }
+}
+
+impl From<&Card> for u8 {
+    fn from(card: &Card) -> Self {
+        u8::from(*card)
     }
 }
 
