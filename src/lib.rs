@@ -2,7 +2,7 @@ pub mod card;
 pub mod deck;
 pub mod textbyte;
 
-use card::Card;
+use card::{JOKER_A, JOKER_B};
 pub use deck::Deck;
 use textbyte::prelude::*;
 
@@ -31,9 +31,9 @@ impl Iterator for Keystream {
         let deck = &mut self.0;
         let mut output = None;
         while output.is_none() {
-            deck.push(Card::joker_a(), 1);
-            deck.push(Card::joker_b(), 2);
-            deck.triple_cut(Card::joker_a(), Card::joker_b());
+            deck.push(JOKER_A, 1);
+            deck.push(JOKER_B, 2);
+            deck.triple_cut(JOKER_A, JOKER_B);
             deck.count_cut(None);
             output = deck.output();
         }

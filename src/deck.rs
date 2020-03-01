@@ -1,4 +1,4 @@
-use crate::card::Card;
+use crate::card::{Card, JOKER_A, JOKER_B};
 use crate::textbyte::textbyte;
 use std::convert::TryFrom;
 use std::fmt;
@@ -31,7 +31,6 @@ impl fmt::Debug for Deck {
 
 impl fmt::Display for Deck {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[")?;
         for (idx, &card) in self.0.iter().enumerate() {
             let space = if idx == 0 { "" } else { " " };
             write!(
@@ -41,7 +40,7 @@ impl fmt::Display for Deck {
                 Card::try_from(card).expect("internal cards must be valid")
             )?;
         }
-        write!(f, "]")
+        Ok(())
     }
 }
 
@@ -58,9 +57,9 @@ impl Deck {
     pub fn from_passphrase(phrase: &str) -> Deck {
         let mut deck = Deck::new();
         for ch in textbyte(phrase) {
-            deck.push(Card::joker_a(), 1);
-            deck.push(Card::joker_b(), 2);
-            deck.triple_cut(Card::joker_a(), Card::joker_b());
+            deck.push(JOKER_A, 1);
+            deck.push(JOKER_B, 2);
+            deck.triple_cut(JOKER_A, JOKER_B);
             deck.count_cut(None);
             deck.count_cut(Some(ch));
         }
