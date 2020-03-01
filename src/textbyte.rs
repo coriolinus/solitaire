@@ -151,7 +151,10 @@ mod tests {
 
     fn padding_impl(msg: &str, expect_len: usize) {
         assert_eq!(
-            textbyte(msg).pad(PAD_CHAR, GROUP_SIZE).collect::<Vec<_>>().len(),
+            textbyte(msg)
+                .pad(PAD_CHAR, GROUP_SIZE)
+                .collect::<Vec<_>>()
+                .len(),
             expect_len
         );
     }
@@ -183,10 +186,7 @@ mod tests {
 
     fn reverse_impl(msg: &str) {
         let msg = &msg.to_string().to_uppercase();
-        assert_eq!(
-            &textbyte(msg).restore().collect::<String>(),
-            msg,
-        );
+        assert_eq!(&textbyte(msg).restore().collect::<String>(), msg,);
     }
 
     #[test]
@@ -203,14 +203,20 @@ mod tests {
         for (msg, expect) in &[
             ("abc", "abc"),
             ("zyx", "zyx"),
-            ("abcdefghijklmnopqrstuvwxyz", "abcde fghij klmno pqrst uvwxy z"),
-            ("thequickbrownfoxjumpedoverthelazydog", "thequ ickbr ownfo xjump edove rthel azydo g"),
-            ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz", "abcde fghij klmno pqrst uvwxy zabcd efghi jklmn opqrs tuvwx yz"),
+            (
+                "abcdefghijklmnopqrstuvwxyz",
+                "abcde fghij klmno pqrst uvwxy z",
+            ),
+            (
+                "thequickbrownfoxjumpedoverthelazydog",
+                "thequ ickbr ownfo xjump edove rthel azydo g",
+            ),
+            (
+                "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz",
+                "abcde fghij klmno pqrst uvwxy zabcd efghi jklmn opqrs tuvwx yz",
+            ),
         ] {
-            assert_eq!(
-                &msg.chars().separate(' ', 5),
-                expect,
-            );
+            assert_eq!(&msg.chars().separate(' ', 5), expect,);
         }
     }
 }

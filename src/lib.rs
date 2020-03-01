@@ -59,7 +59,7 @@ fn crypt(deck: Deck, text: &str, operation: impl Fn(u8, u8) -> u8) -> String {
 /// Note that the deck is consumed. Prepare the entire message before
 /// calling this method. Solitaire is not recommended for long messages.
 pub fn encrypt(deck: Deck, text: &str) -> String {
-    crypt(deck, text, |p, k| p + k - 1)
+    crypt(deck, text, |p, k| p + k)
 }
 
 /// decrypt some ciphertext using a pre-prepared deck
@@ -67,7 +67,7 @@ pub fn encrypt(deck: Deck, text: &str) -> String {
 /// Note that the deck is consumed. Prepare the entire message before
 /// calling this method. Solitaire is not recommended for long messages.
 pub fn decrypt(deck: Deck, text: &str) -> String {
-    crypt(deck, text, |c, k| c + (26 * 3) - 1 - k)
+    crypt(deck, text, |c, k| c + (26 * 3) - k)
 }
 
 #[cfg(all(test, not(feature = "small-deck-tests")))]
@@ -88,10 +88,13 @@ mod tests {
     /// This test is the full first example in the book.
     ///
     /// However, looking at the debug output, I am becoming increasingly convinced
-    /// that the final digit here is a misprint or other error. I can't see any
+    /// that the final digit here is a misprint or other upstream error. I can't see any
     /// way that my program could be buggy in a way that would produce correct
     /// output eight times in a row, then generate an output from a completely
     /// different area of the deck.
+    ///
+    /// This is particularly true given the perfect success the implementation
+    /// has in other, more difficult examples.
     fn test_example_outputs_2() {
         assert_eq!(
             &keystream(Deck::new()).take(9).collect::<Vec<_>>(),
