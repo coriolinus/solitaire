@@ -176,6 +176,7 @@ impl Card {
             }
         }
     }
+
     pub fn to_ascii_string(&self) -> String {
         format!("{}{}", self.rank_string(), self.suit.to_ascii_string())
     }

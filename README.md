@@ -19,8 +19,7 @@ The `textbyte` package uses a lot of trait objects, the consequence of which is 
 
 ## Testing
 
-Because const generics are not yet (early 2020) a thing in Rust, the size of a deck is hardcoded as a constant. However, for testing purposes, it's much simpler and clearer when the deck is much smaller and made of simple integers, not cards. Therefore, certain basic
-tests are behind a feature gate. To run all tests, do
+Because const generics are not yet (early 2020) a thing in Rust, the size of a deck is hardcoded as a constant. However, for testing purposes, it's much simpler and clearer when the deck is much smaller and made of simple integers, not cards. Therefore, certain basic tests are behind a feature gate. To run all tests, do
 
 ```sh
 cargo test --features small-deck-tests && cargo test

@@ -51,16 +51,30 @@ impl fmt::Debug for Deck {
 
 impl fmt::Display for Deck {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (idx, &card) in self.0.iter().enumerate() {
+        for (idx, card) in self.cards().enumerate() {
             let space = if idx == 0 { "" } else { " " };
-            write!(
-                f,
-                "{}{}",
-                space,
-                Card::try_from(card).expect("internal cards must be valid")
-            )?;
+            write!(f, "{}{}", space, card)?;
         }
         Ok(())
+    }
+}
+
+impl Deck {
+    pub fn cards(&self) -> impl '_ + Iterator<Item = Card> {
+        self.0
+            .iter()
+            .map(|v| Card::try_from(*v).expect("cards in decks should always be valid"))
+    }
+
+    pub fn to_ascii_string(&self) -> String {
+        let mut out = String::with_capacity(4 * DECK_SIZE);
+        for (idx, card) in self.cards().enumerate() {
+            if idx != 0 {
+                out.push(' ');
+            }
+            out.push_str(&card.to_ascii_string());
+        }
+        out
     }
 }
 
