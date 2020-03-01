@@ -1,7 +1,4 @@
 use itertools::Itertools;
-use std::marker::PhantomPinned;
-use std::pin::Pin;
-use std::ptr::NonNull;
 
 /// Convert a text input into a numeric stream from 1..26 according to its chars.
 ///
@@ -79,120 +76,51 @@ where
     }
 }
 
-// this whole mess is kind of a nightmare: we can't just run it as a normal
-// iterator combinator which can `impl Iterator` because `into_chunks` _has_ to
-// live in separate memory, for just as long as the `separated` struct which
-// references it. The only reasonable way to ensure that, while _looking like_ a
-// combinator, is to implement this as a self-referential struct. Luckily, that
-// sort of thing is at least possible now.
-type SepPtr<'a, T> = NonNull<dyn 'a + Iterator<Item = T>>;
-type IntoChunks<I> = itertools::IntoChunks<std::iter::Fuse<<I as IntoIterator>::IntoIter>>;
-pub struct Separated<'a, I, T>
-where
-    I: IntoIterator<Item = T>,
-{
-    into_chunks: IntoChunks<I>,
-    separated: SepPtr<'a, T>,
-    _pin: PhantomPinned,
-}
-
-impl<'sep, 'a: 'sep, I, T> Separated<'a, I, T>
-where
-    I: 'a + IntoIterator<Item = T>,
-    <I as IntoIterator>::IntoIter: 'a,
-    T: 'a + Copy + PartialEq,
-{
-    // see https://doc.rust-lang.org/std/pin/index.html#example-self-referential-struct
-    fn new(iter: I, group_sep: T, group_size: usize) -> Pin<Box<Self>> {
-        // What we want is to create a dangling pointer at this point for
-        // `separated`, because we just need a throwaway value. Unfortunately,
-        // that doesn't work: `NonNull::dangling` doesn't have the `?Sized` bound
-        // for its `T`, and dynamic function pointers are of course not sized.
-        //
-        // Therefore, we work around the issue by creating a temporary function
-        // pointer to throw in there right now; it should get cleaned up at the
-        // end of this scope.
-        //
-        // We know the unsafe block in this declaration is actually safe because
-        // we use the unchecked pointer only immediately after declaring it to
-        // a valid value.
-        let temporary_iter: *mut _ = &mut std::iter::once(group_sep);
-        let sep = Separated {
-            into_chunks: iter.into_iter().fuse().chunks(group_size),
-            separated: unsafe { NonNull::new_unchecked(temporary_iter) },
-            _pin: PhantomPinned,
-        };
-
-        let mut boxed = Box::pin(sep);
-
-        let separated = NonNull::from(
-            &(boxed
-                .into_chunks
-                .into_iter()
-                .map(|chunk| {
-                    let d: Box<dyn Iterator<Item = T>> = Box::new(chunk);
-                    d
-                })
-                .interleave_shortest(std::iter::repeat(std::iter::once(group_sep)).map(|cyc| {
-                    let d: Box<dyn Iterator<Item = T>> = Box::new(cyc);
-                    d
-                }))
-                .flatten()
-                .with_position()
-                .filter_map(move |pos| {
-                    use itertools::Position::*;
-                    match pos {
-                        Only(c) => Some(c),
-                        First(c) => Some(c),
-                        Middle(c) => Some(c),
-                        Last(c) if c != group_sep => Some(c),
-                        _ => None,
-                    }
-                })),
-        );
-
-        // this is safe because modifying a field doesn't move the whole struct
-        unsafe {
-            let mut_ref: Pin<&'sep mut Self> = Pin::as_mut(&mut boxed);
-            Pin::get_unchecked_mut(mut_ref).separated = separated;
-        }
-        boxed
-    }
-}
-
-impl<'a, I, T> Iterator for Separated<'a, I, T>
-where
-    I: IntoIterator<Item = T>,
-{
-    type Item = T;
-    fn next(&mut self) -> Option<Self::Item> {
-        // we never share this mutable reference, and it drops as soon
-        // as this function goes out of scope, so we don't need to worry about
-        // the possible of other immutable or mutable access while we're
-        // within this block.
-        unsafe { self.separated.as_mut() }.next()
-    }
-}
-
 pub trait Separate<'a, I, T>
 where
     I: IntoIterator<Item = T>,
-    T: Copy,
+    T: Copy + Into<char>,
 {
     /// Separate a stream into groups, inserting a copy of T between each.
+    /// Then collect it into a String.
     ///
     /// This is a fused iterator.
-    fn separate(self, group_sep: T, group_size: usize) -> Pin<Box<Separated<'a, I, T>>>;
+    fn separate(self, group_sep: T, group_size: usize) -> String;
 }
 
 impl<'a, I, T> Separate<'a, I, T> for I
 where
     I: 'a + IntoIterator<Item = T>,
     <I as IntoIterator>::IntoIter: 'a,
-    T: 'a + Copy + PartialEq,
+    T: 'a + Copy + PartialEq + Into<char>,
 {
-    fn separate(self, group_sep: T, group_size: usize) -> Pin<Box<Separated<'a, I, T>>> {
-        Separated::new(self, group_sep, group_size)
+    fn separate(self, group_sep: T, group_size: usize) -> String {
+        self.into_iter()
+            .fuse()
+            .chunks(group_size)
+            .into_iter()
+            .map(|chunk| {
+                let d: Box<dyn Iterator<Item = T>> = Box::new(chunk);
+                d
+            })
+            .interleave_shortest(std::iter::repeat(std::iter::once(group_sep)).map(|cyc| {
+                let d: Box<dyn Iterator<Item = T>> = Box::new(cyc);
+                d
+            }))
+            .flatten()
+            .with_position()
+            .filter_map(move |pos| {
+                use itertools::Position::*;
+                match pos {
+                    Only(c) => Some(c),
+                    First(c) => Some(c),
+                    Middle(c) => Some(c),
+                    Last(c) if c != group_sep => Some(c),
+                    _ => None,
+                }
+            })
+            .map(Into::into)
+            .collect()
     }
 }
 
