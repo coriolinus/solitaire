@@ -13,8 +13,6 @@ This implementation uses a standard array to store the cards. I considered basin
 - Searching through a slice is much faster than searching through a linked list: LLs trash the processor cache, where slices utilize it efficiently. Searching is a common operation in this algorithm.
 - As each card takes 1 byte, a 54-card deck is actually pretty small. Structs this size are declared `Copy` all the time; it seems likely that it would be actually faster to just re-copy the array as required instead of messing around with list pointer manipulation optimizations.
 
-It would have been much easier in some ways to use vectors instead of arrays to represent the deck, but it would have meant heap allocations. Right now, everything is on the stack; this should have pretty decent throughput, if I ever get around to benchmarking it.
-
 The `textbyte` package uses a lot of trait objects, the consequence of which is that there's some indirection on function invocation for its traits. That's probably fine; in most cases, each of those functions will be called only a very few times for any given program execution, so they shouldn't represent an appreciable slowdown. While it's possible to work around that with a different design, the usage pattern is a lot uglier: nested function calls instead of call chains.
 
 ## Testing

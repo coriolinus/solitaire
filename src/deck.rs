@@ -60,31 +60,13 @@ impl fmt::Display for Deck {
 }
 
 impl Deck {
-    pub fn cards(&self) -> impl '_ + Iterator<Item = Card> {
-        self.0
-            .iter()
-            .map(|v| Card::try_from(*v).expect("cards in decks should always be valid"))
-    }
-
-    pub fn to_ascii_string(&self) -> String {
-        let mut out = String::with_capacity(4 * DECK_SIZE);
-        for (idx, card) in self.cards().enumerate() {
-            if idx != 0 {
-                out.push(' ');
-            }
-            out.push_str(&card.to_ascii_string());
-        }
-        out
-    }
-}
-
-impl Deck {
     /// Generate a new deck in sorted order
     pub fn new() -> Deck {
-        let range = (1..=(DECK_SIZE as u8)).collect::<Vec<_>>();
-        let mut d = [0; DECK_SIZE];
-        d.copy_from_slice(&range);
-        Deck(d)
+        let mut cards = [0; DECK_SIZE];
+        for (idx, card) in cards.iter_mut().enumerate() {
+            *card = (idx as u8) + 1;
+        }
+        Deck(cards)
     }
 
     /// Generate a deck from a passphrase to create the initial deck ordering.
@@ -98,6 +80,12 @@ impl Deck {
             deck.count_cut(Some(ch));
         }
         deck
+    }
+
+    pub fn cards(&self) -> impl '_ + Iterator<Item = Card> {
+        self.0
+            .iter()
+            .map(|v| Card::try_from(*v).expect("cards in decks should always be valid"))
     }
 
     pub fn shuffle(&mut self) {
@@ -215,6 +203,17 @@ impl Deck {
         } else {
             Some(card)
         }
+    }
+
+    pub fn to_ascii_string(&self) -> String {
+        let mut out = String::with_capacity(4 * DECK_SIZE);
+        for (idx, card) in self.cards().enumerate() {
+            if idx != 0 {
+                out.push(' ');
+            }
+            out.push_str(&card.to_ascii_string());
+        }
+        out
     }
 }
 
