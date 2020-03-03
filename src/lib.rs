@@ -73,6 +73,7 @@ pub fn decrypt(deck: Deck, text: &str) -> String {
 #[cfg(all(test, not(feature = "small-deck-tests")))]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     #[test]
     /// This test is a truncated version of the first test in the book.
@@ -179,105 +180,103 @@ mod tests {
         assert_eq!(Deck::from_passphrase(""), Deck::new(),)
     }
 
-    #[test]
     /// tests from the vectors at: https://www.schneier.com/code/sol-test.txt
-    fn test_vectors() {
-        for (plain, key, output, cipher) in &[
-            (
-                "AAAAAAAAAAAAAAA",
-                "",
-                Some(vec![
-                    4, 49, 10, 53, 24, 8, 51, 44, 6, 4, 33, 20, 39, 19, 34, 42,
-                ]),
-                "EXKYI ZSGEH UNTIQ",
-            ),
-            (
-                "AAAAAAAAAAAAAAA",
-                "f",
-                Some(vec![49, 24, 8, 46, 16, 1, 12, 33, 10, 10, 9, 27, 4, 32, 24]),
-                "XYIUQ BMHKK JBEGY",
-            ),
-            (
-                "AAAAAAAAAAAAAAA",
-                "fo",
-                Some(vec![
-                    19, 46, 9, 24, 12, 1, 4, 43, 11, 32, 23, 39, 29, 34, 22,
-                ]),
-                "TUJYM BERLG XNDIW",
-            ),
-            (
-                "AAAAAAAAAAAAAAA",
-                "foo",
-                Some(vec![
-                    8, 19, 7, 25, 20, 53, 9, 8, 22, 32, 43, 5, 26, 17, 53, 38, 48,
-                ]),
-                "ITHZU JIWGR FARMW",
-            ),
-            (
-                "AAAAAAAAAAAAAAA",
-                "a",
-                Some(vec![
-                    49, 14, 3, 26, 11, 32, 18, 2, 46, 37, 34, 42, 13, 18, 28,
-                ]),
-                "XODAL GSCUL IQNSC",
-            ),
-            (
-                "AAAAAAAAAAAAAAA",
-                "aa",
-                Some(vec![14, 7, 32, 22, 38, 23, 23, 2, 26, 8, 12, 2, 34, 16, 15]),
-                "OHGWM XXCAI MCIQP",
-            ),
-            (
-                "AAAAAAAAAAAAAAA",
-                "aaa",
-                Some(vec![
-                    3, 28, 18, 42, 24, 33, 1, 16, 51, 53, 39, 6, 29, 43, 46, 45,
-                ]),
-                "DCSQY HBQZN GDRUT",
-            ),
-            (
-                "AAAAAAAAAAAAAAA",
-                "b",
-                Some(vec![
-                    49, 16, 4, 30, 12, 40, 8, 19, 37, 25, 47, 29, 18, 16, 18,
-                ]),
-                "XQEEM OITLZ VDSQS",
-            ),
-            (
-                "AAAAAAAAAAAAAAA",
-                "bc",
-                Some(vec![
-                    16, 13, 32, 17, 10, 42, 34, 7, 2, 37, 6, 48, 44, 28, 53, 4,
-                ]),
-                "QNGRK QIHCL GWSCE",
-            ),
-            (
-                "AAAAAAAAAAAAAAA",
-                "bcd",
-                Some(vec![
-                    5, 38, 20, 27, 50, 1, 38, 26, 49, 33, 39, 42, 49, 2, 35,
-                ]),
-                "FMUBY BMAXH NQXCJ",
-            ),
-            (
-                "AAAAAAAAAAAAAAAAAAAAAAAAA",
-                "cryptonomicon",
-                None,
-                "SUGSR SXSWQ RMXOH IPBFP XARYQ",
-            ),
-            ("SOLITAIRE", "cryptonomicon", None, "KIRAK SFJAN"),
-        ] {
-            dbg!(key);
-            let deck = Deck::from_passphrase(key);
-            if let Some(output) = output {
-                assert_eq!(
-                    &keystream(deck.clone())
-                        .take(output.len())
-                        .collect::<Vec<_>>(),
-                    output,
-                )
-            }
-            assert_eq!(&encrypt(deck, plain), cipher,)
+    #[rstest(plain, key, output, cipher,
+        case(
+            "AAAAAAAAAAAAAAA",
+            "",
+            Some(vec![
+                4, 49, 10, 53, 24, 8, 51, 44, 6, 4, 33, 20, 39, 19, 34, 42,
+            ]),
+            "EXKYI ZSGEH UNTIQ",
+        ),
+        case(
+            "AAAAAAAAAAAAAAA",
+            "f",
+            Some(vec![49, 24, 8, 46, 16, 1, 12, 33, 10, 10, 9, 27, 4, 32, 24]),
+            "XYIUQ BMHKK JBEGY",
+        ),
+        case(
+            "AAAAAAAAAAAAAAA",
+            "fo",
+            Some(vec![
+                19, 46, 9, 24, 12, 1, 4, 43, 11, 32, 23, 39, 29, 34, 22,
+            ]),
+            "TUJYM BERLG XNDIW",
+        ),
+        case(
+            "AAAAAAAAAAAAAAA",
+            "foo",
+            Some(vec![
+                8, 19, 7, 25, 20, 53, 9, 8, 22, 32, 43, 5, 26, 17, 53, 38, 48,
+            ]),
+            "ITHZU JIWGR FARMW",
+        ),
+        case(
+            "AAAAAAAAAAAAAAA",
+            "a",
+            Some(vec![
+                49, 14, 3, 26, 11, 32, 18, 2, 46, 37, 34, 42, 13, 18, 28,
+            ]),
+            "XODAL GSCUL IQNSC",
+        ),
+        case(
+            "AAAAAAAAAAAAAAA",
+            "aa",
+            Some(vec![14, 7, 32, 22, 38, 23, 23, 2, 26, 8, 12, 2, 34, 16, 15]),
+            "OHGWM XXCAI MCIQP",
+        ),
+        case(
+            "AAAAAAAAAAAAAAA",
+            "aaa",
+            Some(vec![
+                3, 28, 18, 42, 24, 33, 1, 16, 51, 53, 39, 6, 29, 43, 46, 45,
+            ]),
+            "DCSQY HBQZN GDRUT",
+        ),
+        case(
+            "AAAAAAAAAAAAAAA",
+            "b",
+            Some(vec![
+                49, 16, 4, 30, 12, 40, 8, 19, 37, 25, 47, 29, 18, 16, 18,
+            ]),
+            "XQEEM OITLZ VDSQS",
+        ),
+        case(
+            "AAAAAAAAAAAAAAA",
+            "bc",
+            Some(vec![
+                16, 13, 32, 17, 10, 42, 34, 7, 2, 37, 6, 48, 44, 28, 53, 4,
+            ]),
+            "QNGRK QIHCL GWSCE",
+        ),
+        case(
+            "AAAAAAAAAAAAAAA",
+            "bcd",
+            Some(vec![
+                5, 38, 20, 27, 50, 1, 38, 26, 49, 33, 39, 42, 49, 2, 35,
+            ]),
+            "FMUBY BMAXH NQXCJ",
+        ),
+        case(
+            "AAAAAAAAAAAAAAAAAAAAAAAAA",
+            "cryptonomicon",
+            None,
+            "SUGSR SXSWQ RMXOH IPBFP XARYQ",
+        ),
+        case("SOLITAIRE", "cryptonomicon", None, "KIRAK SFJAN"),
+    )]
+    fn vectors(plain: &str, key: &str, output: Option<Vec<u8>>, cipher: &str) {
+        dbg!(key);
+        let deck = Deck::from_passphrase(key);
+        if let Some(output) = output {
+            assert_eq!(
+                keystream(deck.clone())
+                    .take(output.len())
+                    .collect::<Vec<_>>(),
+                output,
+            )
         }
+        assert_eq!(&encrypt(deck, plain), cipher,)
     }
 }
