@@ -59,6 +59,14 @@ impl fmt::Display for Deck {
     }
 }
 
+impl PartialEq for Deck {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.len() == other.0.len() && self.0.iter().zip(other.0.iter()).all(|(a, b)| a == b)
+    }
+}
+
+impl Eq for Deck {}
+
 impl Deck {
     /// Generate a new deck in sorted order
     pub fn new() -> Deck {
