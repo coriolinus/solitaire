@@ -269,7 +269,10 @@ mod tests {
     fn vectors(plain: &str, key: &str, output: Option<Vec<u8>>, cipher: &str) {
         dbg!(key);
         let deck = Deck::from_passphrase(key);
-        if let Some(output) = output {
+        if let Some(mut output) = output {
+            // the output vectors include the jokers, which are excluded from
+            // keystream's output
+            output.retain(|v| *v < 53);
             assert_eq!(
                 keystream(deck.clone())
                     .take(output.len())
