@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use std::iter::FromIterator;
 
 /// Convert a text input into a numeric stream from 1..26 according to its chars.
 ///
@@ -76,25 +77,27 @@ where
     }
 }
 
-pub trait Separate<'a, I, T>
+pub trait Separate<'a, I, T, O>
 where
     I: IntoIterator<Item = T>,
-    T: Copy + Into<char>,
+    T: Copy,
+    O: FromIterator<T>,
 {
     /// Separate a stream into groups, inserting a copy of T between each.
     /// Then collect it into a String.
     ///
     /// This is a fused iterator.
-    fn separate(self, group_sep: T, group_size: usize) -> String;
+    fn separate(self, group_sep: T, group_size: usize) -> O;
 }
 
-impl<'a, I, T> Separate<'a, I, T> for I
+impl<'a, I, T, O> Separate<'a, I, T, O> for I
 where
     I: 'a + IntoIterator<Item = T>,
     <I as IntoIterator>::IntoIter: 'a,
-    T: 'a + Copy + PartialEq + Into<char>,
+    T: 'a + Copy + PartialEq,
+    O: FromIterator<T>,
 {
-    fn separate(self, group_sep: T, group_size: usize) -> String {
+    fn separate(self, group_sep: T, group_size: usize) -> O {
         self.into_iter()
             .fuse()
             .chunks(group_size)
@@ -119,7 +122,6 @@ where
                     _ => None,
                 }
             })
-            .map(Into::into)
             .collect()
     }
 }
@@ -216,7 +218,8 @@ mod tests {
                 "abcde fghij klmno pqrst uvwxy zabcd efghi jklmn opqrs tuvwx yz",
             ),
         ] {
-            assert_eq!(&msg.chars().separate(' ', 5), expect,);
+            let got: String = msg.chars().separate(' ', 5);
+            assert_eq!(&got, expect,);
         }
     }
 }

@@ -165,7 +165,7 @@ mod tests {
             "For a long time there is really nothing to be seen except steam; but after Golgotha's been burning for an hour or two, it becomes possible to see that underneath the shallow water, spreading down the valley floor, indeed right around the isolated boulder where Randy's perched, is a bright, thick river of gold.",
         ].windows(2) {
             let (key, msg) = (w[0], w[1]);
-            let expect = textbyte(msg).pad(PAD_CHAR, GROUP_SIZE).restore().separate(' ', GROUP_SIZE);
+            let expect: String = textbyte(msg).pad(PAD_CHAR, GROUP_SIZE).restore().separate(' ', GROUP_SIZE);
             let deck = Deck::from_passphrase(key);
             let ciphertext = encrypt(deck.clone(), msg);
             let plaintext = decrypt(deck, &ciphertext);
