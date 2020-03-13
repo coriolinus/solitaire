@@ -104,6 +104,15 @@ mod tests {
     }
 
     #[test]
+    /// This test is the first example in the book, adjusted so it passes.
+    fn test_example_outputs_3() {
+        assert_eq!(
+            &keystream(Deck::new()).take(9).collect::<Vec<_>>(),
+            &[4, 49, 10, 24, 8, 51, 44, 6, 4],
+        );
+    }
+
+    #[test]
     /// this test is sample 2 in the book
     fn test_passphrase_keygen() {
         assert_eq!(
