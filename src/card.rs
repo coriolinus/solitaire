@@ -1,4 +1,4 @@
-use crate::deck::DECK_SIZE;
+use crate::deck::DEFAULT_DECK_SIZE;
 use std::convert::TryFrom;
 use std::fmt;
 use std::str::FromStr;
@@ -6,12 +6,12 @@ use thiserror::Error;
 
 const SUIT_SIZE: u8 = 13;
 
-pub const JOKER_A: Card = Card {
+pub const JOKER_A: Card<DEFAULT_DECK_SIZE> = Card {
     suit: Suit::Joker,
     rank: Rank::Number(1),
 };
 
-pub const JOKER_B: Card = Card {
+pub const JOKER_B: Card<DEFAULT_DECK_SIZE> = Card {
     suit: Suit::Joker,
     rank: Rank::Number(2),
 };
@@ -34,7 +34,7 @@ pub enum CardConversionError {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum Suit {
+pub enum Suit<const DECK_SIZE: usize = DEFAULT_DECK_SIZE> {
     Club,
     Diamond,
     Heart,
@@ -42,7 +42,7 @@ pub enum Suit {
     Joker,
 }
 
-impl TryFrom<u8> for Suit {
+impl<const DECK_SIZE: usize> TryFrom<u8> for Suit<DECK_SIZE> {
     type Error = CardConversionError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         if value == 0 || value as usize > DECK_SIZE {
@@ -60,7 +60,7 @@ impl TryFrom<u8> for Suit {
     }
 }
 
-impl fmt::Display for Suit {
+impl<const DECK_SIZE: usize> fmt::Display for Suit<DECK_SIZE> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Suit::*;
         write!(
@@ -77,7 +77,7 @@ impl fmt::Display for Suit {
     }
 }
 
-impl Suit {
+impl<const DECK_SIZE: usize> Suit<DECK_SIZE> {
     pub fn to_ascii_string(&self) -> String {
         use Suit::*;
         format!(
@@ -93,7 +93,7 @@ impl Suit {
     }
 }
 
-impl FromStr for Suit {
+impl<const DECK_SIZE: usize> FromStr for Suit<DECK_SIZE> {
     type Err = CardConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -110,14 +110,14 @@ impl FromStr for Suit {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Rank {
+pub enum Rank<const DECK_SIZE: usize = DEFAULT_DECK_SIZE> {
     Number(u8),
     Jack,
     Queen,
     King,
 }
 
-impl Rank {
+impl<const DECK_SIZE: usize> Rank<DECK_SIZE> {
     pub fn value(&self) -> u8 {
         use Rank::*;
         match self {
@@ -129,10 +129,10 @@ impl Rank {
     }
 }
 
-impl TryFrom<u8> for Rank {
+impl<const DECK_SIZE: usize> TryFrom<u8> for Rank<DECK_SIZE> {
     type Error = CardConversionError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value == 0 || value as usize > crate::deck::DECK_SIZE {
+        if value == 0 || value as usize > DECK_SIZE {
             return Err(CardConversionError::ValueOutOfRange);
         }
         use Rank::*;
@@ -147,18 +147,18 @@ impl TryFrom<u8> for Rank {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Card {
-    suit: Suit,
-    rank: Rank,
+pub struct Card<const DECK_SIZE: usize = DEFAULT_DECK_SIZE> {
+    suit: Suit<DECK_SIZE>,
+    rank: Rank<DECK_SIZE>,
 }
 
-impl fmt::Display for Card {
+impl fmt::Display for Card<DEFAULT_DECK_SIZE> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.rank_string(), self.suit)
     }
 }
 
-impl Card {
+impl Card<DEFAULT_DECK_SIZE> {
     fn rank_string(&self) -> String {
         use Rank::*;
         match self {
@@ -182,7 +182,7 @@ impl Card {
     }
 }
 
-impl FromStr for Card {
+impl FromStr for Card<DEFAULT_DECK_SIZE> {
     type Err = CardConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -213,7 +213,7 @@ impl FromStr for Card {
     }
 }
 
-impl Default for Card {
+impl<const DECK_SIZE: usize> Default for Card<DECK_SIZE> {
     fn default() -> Self {
         Card {
             suit: Suit::Club,
@@ -222,34 +222,34 @@ impl Default for Card {
     }
 }
 
-impl Card {
-    pub fn new(suit: Suit, rank: Rank) -> Card {
+impl<const DECK_SIZE: usize> Card<DECK_SIZE> {
+    pub fn new(suit: Suit<DECK_SIZE>, rank: Rank<DECK_SIZE>) -> Card<DECK_SIZE> {
         Card { suit, rank }
     }
 
-    pub fn suit(&self) -> Suit {
+    pub fn suit(&self) -> Suit<DECK_SIZE> {
         self.suit
     }
 
-    pub fn rank(&self) -> Rank {
+    pub fn rank(&self) -> Rank<DECK_SIZE> {
         self.rank
     }
 }
 
-impl From<Card> for u8 {
-    fn from(card: Card) -> Self {
+impl<const DECK_SIZE: usize> From<Card<DECK_SIZE>> for u8 {
+    fn from(card: Card<DECK_SIZE>) -> Self {
         let suit_value = card.suit as u8 * SUIT_SIZE;
         suit_value + card.rank.value()
     }
 }
 
-impl From<&Card> for u8 {
-    fn from(card: &Card) -> Self {
+impl<const DECK_SIZE: usize> From<&Card<DECK_SIZE>> for u8 {
+    fn from(card: &Card<DECK_SIZE>) -> Self {
         u8::from(*card)
     }
 }
 
-impl TryFrom<u8> for Card {
+impl<const DECK_SIZE: usize> TryFrom<u8> for Card<DECK_SIZE> {
     type Error = CardConversionError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let suit = Suit::try_from(value)?;
@@ -262,10 +262,12 @@ impl TryFrom<u8> for Card {
 mod tests {
     use super::*;
 
+    const DECK_SIZE: usize = crate::deck::DEFAULT_DECK_SIZE;
+
     #[test]
     fn test_reversing() {
         for i in 1..=(DECK_SIZE as u8) {
-            let card = Card::try_from(i).unwrap();
+            let card = Card::<DECK_SIZE>::try_from(i).unwrap();
             let v = u8::from(card);
             dbg!(i, card, v);
             assert_eq!(i, v, "reversing from u8 must match")
@@ -274,12 +276,11 @@ mod tests {
 
     #[test]
     fn test_invalid_cards() {
-        assert!(Card::try_from(0).is_err());
-        assert!(Card::try_from(DECK_SIZE as u8 + 1).is_err());
+        assert!(Card::<DECK_SIZE>::try_from(0).is_err());
+        assert!(Card::<DECK_SIZE>::try_from(DECK_SIZE as u8 + 1).is_err());
     }
 
     #[test]
-    #[cfg(not(feature = "small-deck-tests"))]
     fn test_jokers() {
         for &joker in &[JOKER_A, JOKER_B] {
             let u = u8::from(joker);

@@ -8,17 +8,13 @@ use std::iter::FromIterator;
 use std::str::FromStr;
 use thiserror::Error;
 
-#[cfg(not(feature = "small-deck-tests"))]
-pub const DECK_SIZE: usize = 54;
-
-#[cfg(feature = "small-deck-tests")]
-pub const DECK_SIZE: usize = 8;
+pub(crate) const DEFAULT_DECK_SIZE: usize = 54;
 
 lazy_static! {
     static ref DECK_RE: Regex = Regex::new(r"(?i)[\djqkab]{1,2}[cdhsj♣♦♥♠♧♢♡♤]").unwrap();
 }
 
-fn is_joker(v: u8) -> bool {
+fn is_joker<const DECK_SIZE: usize>(v: u8) -> bool {
     let v = v as usize;
     v == DECK_SIZE || v == (DECK_SIZE - 1)
 }
@@ -36,9 +32,9 @@ pub enum DeckError {
 }
 
 #[derive(Clone)]
-pub struct Deck([u8; DECK_SIZE]);
+pub struct Deck<const DECK_SIZE: usize = DEFAULT_DECK_SIZE>([u8; DECK_SIZE]);
 
-impl fmt::Debug for Deck {
+impl<const DECK_SIZE: usize> fmt::Debug for Deck<DECK_SIZE> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[")?;
         for (idx, &card) in self.0.iter().enumerate() {
@@ -49,7 +45,7 @@ impl fmt::Debug for Deck {
     }
 }
 
-impl fmt::Display for Deck {
+impl<const DECK_SIZE: usize> fmt::Display for Deck<DECK_SIZE> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (idx, card) in self.cards().enumerate() {
             let space = if idx == 0 { "" } else { " " };
@@ -59,17 +55,17 @@ impl fmt::Display for Deck {
     }
 }
 
-impl PartialEq for Deck {
+impl<const DECK_SIZE: usize> PartialEq for Deck<DECK_SIZE> {
     fn eq(&self, other: &Self) -> bool {
         self.0.len() == other.0.len() && self.0.iter().zip(other.0.iter()).all(|(a, b)| a == b)
     }
 }
 
-impl Eq for Deck {}
+impl<const DECK_SIZE: usize> Eq for Deck<DECK_SIZE> {}
 
-impl Deck {
+impl<const DECK_SIZE: usize> Deck<DECK_SIZE> {
     /// Generate a new deck in sorted order
-    pub fn new() -> Deck {
+    pub fn new() -> Deck<DECK_SIZE> {
         let mut cards = [0; DECK_SIZE];
         for (idx, card) in cards.iter_mut().enumerate() {
             *card = (idx as u8) + 1;
@@ -78,7 +74,7 @@ impl Deck {
     }
 
     /// Generate a deck from a passphrase to create the initial deck ordering.
-    pub fn from_passphrase(phrase: &str) -> Deck {
+    pub fn from_passphrase(phrase: &str) -> Deck<DECK_SIZE> {
         let mut deck = Deck::new();
         for ch in textbyte(phrase) {
             deck.push(JOKER_A, 1);
@@ -206,11 +202,7 @@ impl Deck {
             idx
         };
         let card = self.0[idx];
-        if is_joker(card) {
-            None
-        } else {
-            Some(card)
-        }
+        (!is_joker::<DECK_SIZE>(card)).then(move || card)
     }
 
     pub fn to_ascii_string(&self) -> String {
@@ -225,21 +217,23 @@ impl Deck {
     }
 }
 
-impl Default for Deck {
-    fn default() -> Deck {
+impl<const DECK_SIZE: usize> Default for Deck<DECK_SIZE> {
+    fn default() -> Deck<DECK_SIZE> {
         Deck::new()
     }
 }
 
 /// This might be able to become a deck, but it needs additional validation
 #[derive(Clone, Debug)]
-pub struct MaybeDeck(Vec<u8>);
+pub struct MaybeDeck<const DECK_SIZE: usize = DEFAULT_DECK_SIZE>(Vec<u8>);
 
-impl FromStr for MaybeDeck {
+impl FromStr for MaybeDeck<DEFAULT_DECK_SIZE> {
     type Err = DeckError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let cards: Vec<Card> = DECK_RE
+        const DECK_SIZE: usize = DEFAULT_DECK_SIZE;
+
+        let cards: Vec<Card<DECK_SIZE>> = DECK_RE
             .captures_iter(s)
             .take(DECK_SIZE + 1)
             .map(|caps| Card::from_str(&caps[0]))
@@ -248,11 +242,11 @@ impl FromStr for MaybeDeck {
     }
 }
 
-impl<T> FromIterator<T> for MaybeDeck
+impl<T, const DECK_SIZE: usize> FromIterator<T> for MaybeDeck<DECK_SIZE>
 where
     T: Into<u8>,
 {
-    fn from_iter<I>(iter: I) -> MaybeDeck
+    fn from_iter<I>(iter: I) -> MaybeDeck<DECK_SIZE>
     where
         I: IntoIterator<Item = T>,
     {
@@ -266,7 +260,7 @@ where
 }
 
 impl MaybeDeck {
-    pub fn check(self) -> Result<Deck, DeckError> {
+    pub fn check<const DECK_SIZE: usize>(self) -> Result<Deck<DECK_SIZE>, DeckError> {
         if self.0.len() != DECK_SIZE {
             return Err(DeckError::WrongNumber);
         }
@@ -297,9 +291,11 @@ impl TryFrom<MaybeDeck> for Deck {
     }
 }
 
-#[cfg(all(test, feature = "small-deck-tests"))]
+#[cfg(test)]
 mod small_deck_tests {
     use super::*;
+
+    const DECK_SIZE: usize = 8;
 
     #[test]
     fn test_push_1_no_overflow() {
@@ -396,15 +392,19 @@ mod small_deck_tests {
     }
 }
 
-#[cfg(all(test, not(feature = "small-deck-tests")))]
 mod tests {
     use super::*;
 
+    // This is not in fact dead code; it's just that it's only used within a test which
+    // isn't showing up for _reasons_?
+    #[allow(dead_code)]
+    const DECK_SIZE: usize = DEFAULT_DECK_SIZE;
+
     #[test]
     fn test_unkeyed() {
-        let d = Deck::new();
+        let d = Deck::<DECK_SIZE>::new();
         println!("{:?}", d);
-        assert!(is_joker(d.0[DECK_SIZE - 1]));
-        assert!(is_joker(d.0[DECK_SIZE - 2]));
+        assert!(is_joker::<DECK_SIZE>(d.0[DECK_SIZE - 1]));
+        assert!(is_joker::<DECK_SIZE>(d.0[DECK_SIZE - 2]));
     }
 }

@@ -17,7 +17,3 @@ thiserror = "1.0"
 
 [dev-dependencies]
 rstest = "0.5"
-
-[features]
-default = []
-small-deck-tests = []

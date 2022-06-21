@@ -70,10 +70,12 @@ pub fn decrypt(deck: Deck, text: &str) -> String {
     crypt(deck, text, |c, k| c + (26 * 3) - k)
 }
 
-#[cfg(all(test, not(feature = "small-deck-tests")))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use rstest::rstest;
+
+    const DECK_SIZE: usize = crate::deck::DEFAULT_DECK_SIZE;
 
     #[test]
     /// This test is a truncated version of the first test in the book.
@@ -186,7 +188,7 @@ mod tests {
 
     #[test]
     fn test_empty_key_produces_sorted_deck() {
-        assert_eq!(Deck::from_passphrase(""), Deck::new(),)
+        assert_eq!(Deck::from_passphrase(""), Deck::<DECK_SIZE>::new(),)
     }
 
     /// tests from the vectors at: https://www.schneier.com/code/sol-test.txt
