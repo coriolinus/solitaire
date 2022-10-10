@@ -1,63 +1,63 @@
 use anyhow::{bail, Result};
+use clap::{Args, Parser, Subcommand};
 use solitaire::{
     deck::{Deck, MaybeDeck},
     decrypt, encrypt,
 };
-use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
-#[structopt(
+#[derive(Debug, Parser)]
+#[command(
     name = "solitaire",
     about = "Bruce Schneier's Solitaire encryption algorithm."
 )]
 struct Opt {
     /// Only emit ASCII chars instead of unicode suit symbols
-    #[structopt(short, long)]
+    #[arg(short, long)]
     ascii: bool,
 
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     subcommand: Command,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Subcommand)]
 enum Command {
-    #[structopt(about = "shuffle a new or existing deck")]
+    #[command(about = "shuffle a new or existing deck")]
     Shuffle {
         /// How many times to shuffle this deck.
         ///
         /// Shuffling requires entropy, and the amount of potential entropy
         /// in a truly random deck of cards is much larger than the amount which
         /// will typically be inserted by a single shuffle.
-        #[structopt(short = "n", long, default_value = "7")]
+        #[arg(short = 'n', long, default_value = "7")]
         iterations: u32,
 
         /// Optionally specify a starting deck. Otherwise, a fresh sorted one
         /// will form the initial state.
-        #[structopt(name = "deck")]
+        #[arg(name = "deck")]
         maybe_deck: Option<MaybeDeck>,
     },
-    #[structopt(about = "initialize a deck from a passphrase")]
+    #[command(about = "initialize a deck from a passphrase")]
     Passphrase { phrase: String },
-    #[structopt(about = "encrypt a message")]
+    #[command(about = "encrypt a message")]
     Encrypt {
-        #[structopt(flatten)]
+        #[command(flatten)]
         crypt_opts: CryptOptions,
     },
-    #[structopt(about = "decrypt a message")]
+    #[command(about = "decrypt a message")]
     Decrypt {
-        #[structopt(flatten)]
+        #[command(flatten)]
         crypt_opts: CryptOptions,
     },
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Args)]
 struct CryptOptions {
     /// This deck is used as the initial state.
-    #[structopt(short, long, name = "deck", conflicts_with = "passphrase")]
+    #[arg(short, long, name = "deck", conflicts_with = "passphrase")]
     maybe_deck: Option<MaybeDeck>,
 
     /// A fresh deck is generated from this passphrase.
-    #[structopt(short, long)]
+    #[arg(short, long)]
     passphrase: Option<String>,
 
     message: String,
@@ -79,7 +79,7 @@ impl CryptOptions {
 
 fn main() -> Result<()> {
     use Command::*;
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
 
     let ascii = opt.ascii;
     let print_deck = |deck: &Deck| {
